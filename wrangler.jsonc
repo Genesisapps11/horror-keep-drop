@@ -1,0 +1,12 @@
+{
+  "name": "horror-keep-drop",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-26",
+  "account_id": "4a81bcb82858ccab252f4a353e1d4d4e",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  }
+}

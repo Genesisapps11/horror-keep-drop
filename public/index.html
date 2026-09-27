@@ -22,116 +22,94 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font: 16px/1.45 Georgia, "Iowan Old Style", Palatino, serif;
+    font: 13px/1.3 Georgia, "Iowan Old Style", Palatino, serif;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
-  button, input, select { font: 16px/1.2 system-ui, sans-serif; }
-  body { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
-  header.top { padding: 12px 12px 4px; }
-  h1 { font-size: 26px; font-weight: 500; margin: 0; }
-  .stats { margin: 6px 0 10px; color: var(--brass); font: 14px/1.3 system-ui, sans-serif; }
-  .filters, .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .tools { grid-template-columns: 1fr; margin-top: 18px; }
+  button { font: 12px/1.2 system-ui, sans-serif; }
+  header.top { padding: 8px 10px 0; }
+  h1 { font-size: 15px; font-weight: 500; margin: 0; }
+  .stats { margin: 2px 0 6px; color: var(--brass); font: 11px/1.2 system-ui, sans-serif; }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .tools button { width: auto; min-height: 32px; padding: 6px 8px; }
   .send-bar {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 3;
-    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
     background: rgba(18, 17, 15, 0.96);
     border-top: 1px solid var(--line);
   }
   #send-stephen {
     display: block;
     width: 100%;
-    min-height: 56px;
+    min-height: 44px;
     margin: 0;
-    padding: 14px 16px;
+    padding: 10px 12px;
     border: 0;
-    border-radius: 12px;
+    border-radius: 10px;
     background: var(--brass);
     color: #1a140c;
-    font: 700 20px/1.2 system-ui, sans-serif;
-  }
-  input[type="search"], select {
-    width: 100%;
-    background: #0e0d0b;
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 12px;
-    margin: 0 0 8px;
+    font: 700 15px/1.2 system-ui, sans-serif;
   }
   button {
     background: transparent;
     color: var(--text);
     border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 6px;
+    padding: 4px 8px;
     cursor: pointer;
-    min-height: 48px;
-    width: 100%;
+    min-height: 28px;
+    width: auto;
   }
   button:hover { border-color: var(--brass); }
   button[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
   button.keep[aria-pressed="true"] { background: var(--keep-bg); color: var(--keep); border-color: #5d7a52; }
   button.drop[aria-pressed="true"] { background: var(--drop-bg); color: var(--drop); border-color: #8a4e46; }
-  .toast { display: block; min-height: 1.2em; margin: 0 0 6px; color: var(--brass); font: 14px system-ui, sans-serif; }
-  nav.jump { padding: 4px 12px 0; }
-  main { padding: 4px 12px 16px; max-width: 720px; margin: 0 auto; }
+  .toast { display: block; min-height: 1em; margin: 0 0 4px; color: var(--brass); font: 11px system-ui, sans-serif; }
+  main { padding: 0 10px 12px; max-width: 720px; margin: 0 auto; }
   section.family {
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 12px;
-    margin-top: 14px;
-    padding: 14px 14px 6px;
+    border-radius: 8px;
+    margin-top: 8px;
+    padding: 8px 8px 2px;
   }
-  section.family h2 { margin: 0; font-size: 22px; font-weight: 500; }
-  .family-head { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
-  .family-note, .movie-note { color: var(--muted); margin: 6px 0 0; font-size: 14px; }
-  .family-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  section.family h2 { margin: 0; font-size: 13px; font-weight: 500; }
+  .family-head { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+  .family-note, .movie-note { color: var(--muted); margin: 2px 0 0; font-size: 11px; }
+  .family-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .family-actions button { width: 100%; font-size: 11px; }
   .movie {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
-    padding: 12px 0;
+    padding: 4px 0;
     border-top: 1px solid #2c2823;
   }
   .movie.keep { box-shadow: inset 3px 0 0 var(--brass); padding-left: 10px; }
   .movie.drop .title { text-decoration: line-through; color: var(--muted); }
-  .title { margin: 0; font-size: 18px; font-weight: 500; }
-  .year { color: var(--brass); font: 13px system-ui, sans-serif; margin-right: 8px; }
-  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .title { margin: 0; font-size: 13px; font-weight: 500; }
+  .year { color: var(--brass); font: 11px system-ui, sans-serif; margin-right: 6px; }
+  .choices { display: flex; gap: 4px; flex-shrink: 0; }
+  .choices button { min-height: 26px; padding: 3px 8px; }
   #kept {
     margin-top: 22px;
     padding-top: 8px;
   }
-  #kept h2 { font-weight: 500; }
-  #kept ul { margin: 6px 0 14px; padding-left: 18px; }
+  #kept h2 { font-size: 13px; font-weight: 500; }
+  #kept ul { margin: 4px 0 10px; padding-left: 16px; font-size: 12px; }
   .hidden { display: none; }
-  @media (min-width: 800px) {
-    header.top, nav.jump, main { padding-left: 20px; padding-right: 20px; }
-    .family-head { flex-direction: row; align-items: center; justify-content: space-between; }
-    .family-actions { grid-template-columns: repeat(3, 1fr); }
-    .movie { flex-direction: row; align-items: center; justify-content: space-between; }
-    .choices { width: 220px; }
-  }
 </style>
 </head>
 <body>
 <header class="top">
   <h1>Horror keep or drop</h1>
   <p class="stats" id="stats"></p>
-  <input id="q" type="search" placeholder="Search titles" aria-label="Search titles">
-  <div class="filters">
-    <button type="button" data-filter="all" aria-pressed="true">All</button>
-    <button type="button" data-filter="unset" aria-pressed="false">Undecided</button>
-    <button type="button" data-filter="keep" aria-pressed="false">Kept</button>
-    <button type="button" data-filter="drop" aria-pressed="false">Dropped</button>
-  </div>
 </header>
-<nav class="jump" id="jump"></nav>
 <main>
   <div id="list"></div>
   <div id="kept"></div>
@@ -319,8 +297,6 @@ for (const family of FAMILIES) {
 
 const STORAGE_KEY = "horror-keep-drop-v1";
 let state = {};
-let filter = "all";
-let query = "";
 
 function encodeState(value) {
   const bytes = new TextEncoder().encode(JSON.stringify(value));
@@ -423,14 +399,6 @@ function familyAggregate(family) {
   return "mixed";
 }
 
-function visible(movie, family) {
-  const choice = state[movie.id] || "unset";
-  if (filter !== "all" && choice !== filter) return false;
-  if (!query) return true;
-  const hay = [family.name, movie.title, String(movie.year), movie.note || ""].join(" ").toLowerCase();
-  return hay.includes(query);
-}
-
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -441,7 +409,7 @@ function render() {
   const list = document.getElementById("list");
   const parts = [];
   for (const family of FAMILIES) {
-    const movies = family.movies.filter((movie) => visible(movie, family));
+    const movies = family.movies;
     if (!movies.length) continue;
     const aggregate = familyAggregate(family);
     const movieHtml = movies.map((movie) => {
@@ -617,16 +585,6 @@ async function copyText(text) {
   setTimeout(() => { if (toast.textContent === "Copied") toast.textContent = ""; }, 1600);
 }
 
-document.getElementById("jump").innerHTML =
-  `<select id="jump-select" aria-label="Jump to a family"><option value="">Jump to a family</option>` +
-  FAMILIES.map((family) => `<option value="family-${family.id}">${escapeHtml(family.name)}</option>`).join("") +
-  `</select>`;
-document.getElementById("jump-select").addEventListener("change", (event) => {
-  const id = event.target.value;
-  if (!id) return;
-  document.getElementById(id).scrollIntoView({ block: "start" });
-});
-
 document.getElementById("list").addEventListener("click", (event) => {
   const movieButton = event.target.closest("[data-set]");
   if (movieButton) {
@@ -641,21 +599,6 @@ document.getElementById("list").addEventListener("click", (event) => {
     saveState();
     render();
   }
-});
-
-document.querySelector(".filters").addEventListener("click", (event) => {
-  const filterButton = event.target.closest("[data-filter]");
-  if (!filterButton) return;
-  filter = filterButton.dataset.filter;
-  for (const button of document.querySelectorAll("[data-filter]")) {
-    button.setAttribute("aria-pressed", String(button === filterButton));
-  }
-  render();
-});
-
-document.getElementById("q").addEventListener("input", (event) => {
-  query = event.target.value.trim().toLowerCase();
-  render();
 });
 
 document.getElementById("copy-kept").addEventListener("click", () => copyText(keptText()));

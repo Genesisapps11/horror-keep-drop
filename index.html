@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horror keep or drop</title>
+<style>
+  :root {
+    --bg: #12110f;
+    --card: #1c1915;
+    --line: #3a342c;
+    --text: #f3ece2;
+    --muted: #b3a696;
+    --keep: #d7e7c8;
+    --keep-bg: #243226;
+    --drop: #f0d2c8;
+    --drop-bg: #3a2422;
+    --brass: #c6a36a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 Georgia, "Iowan Old Style", Palatino, serif;
+  }
+  button, input { font: 15px/1.2 system-ui, sans-serif; }
+  header.top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(18, 17, 15, 0.94);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 20px 12px;
+  }
+  h1 { font-size: 28px; font-weight: 500; margin: 0 0 4px; }
+  .lede { margin: 0; color: var(--muted); max-width: 68ch; }
+  .stats { margin: 10px 0 0; color: var(--brass); font: 14px/1.3 system-ui, sans-serif; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+  input[type="search"] {
+    background: #0e0d0b;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    min-width: min(100%, 240px);
+  }
+  button {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  button:hover { border-color: var(--brass); }
+  button[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+  button.keep[aria-pressed="true"] { background: var(--keep-bg); color: var(--keep); border-color: #5d7a52; }
+  button.drop[aria-pressed="true"] { background: var(--drop-bg); color: var(--drop); border-color: #8a4e46; }
+  .toast { color: var(--brass); font: 14px system-ui, sans-serif; min-height: 1.2em; }
+  nav.jump { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 20px 0; }
+  nav.jump a {
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 10px;
+    font: 13px system-ui, sans-serif;
+  }
+  nav.jump a:hover { color: var(--text); border-color: var(--brass); }
+  main { padding: 8px 20px 48px; max-width: 980px; }
+  section.family {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-top: 14px;
+    padding: 14px 14px 6px;
+  }
+  section.family h2 { margin: 0; font-size: 22px; font-weight: 500; }
+  .family-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+  .family-note, .movie-note { color: var(--muted); margin: 6px 0 0; font-size: 14px; }
+  .family-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .movie {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 0;
+    border-top: 1px solid #2c2823;
+  }
+  .movie.keep { box-shadow: inset 3px 0 0 var(--brass); padding-left: 10px; }
+  .movie.drop .title { text-decoration: line-through; color: var(--muted); }
+  .title { margin: 0; font-size: 18px; font-weight: 500; }
+  .year { color: var(--brass); font: 13px system-ui, sans-serif; margin-right: 8px; }
+  .choices { display: flex; gap: 8px; flex-shrink: 0; }
+  #kept {
+    margin-top: 22px;
+    padding-top: 8px;
+  }
+  #kept h2 { font-weight: 500; }
+  #kept ul { margin: 6px 0 14px; padding-left: 18px; }
+  .hidden { display: none; }
+  @media (max-width: 640px) {
+    .movie { align-items: flex-start; flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Horror keep or drop</h1>
+  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices stay in this browser. Copy the link if you want them on another device.</p>
+  <p class="stats" id="stats"></p>
+  <div class="controls">
+    <input id="q" type="search" placeholder="Search titles" aria-label="Search titles">
+    <button type="button" data-filter="all" aria-pressed="true">All</button>
+    <button type="button" data-filter="unset" aria-pressed="false">Undecided</button>
+    <button type="button" data-filter="keep" aria-pressed="false">Kept</button>
+    <button type="button" data-filter="drop" aria-pressed="false">Dropped</button>
+    <button type="button" id="copy-kept">Copy kept list</button>
+    <button type="button" id="copy-link">Copy link</button>
+    <button type="button" id="reset">Clear all</button>
+    <span class="toast" id="toast" role="status"></span>
+  </div>
+</header>
+<nav class="jump" id="jump"></nav>
+<main>
+  <div id="list"></div>
+  <div id="kept"></div>
+</main>
+<script type="application/json" id="families">[
+  {"id":"scream","name":"Scream","note":"Release order is the story order. The 2022 film is the fifth, and its title is just Scream.","movies":[
+    {"id":"scream-1996","title":"Scream","year":1996},
+    {"id":"scream-2","title":"Scream 2","year":1997},
+    {"id":"scream-3","title":"Scream 3","year":2000},
+    {"id":"scream-4","title":"Scream 4","year":2011},
+    {"id":"scream-2022","title":"Scream","year":2022,"note":"Fifth film. The title drops the number."},
+    {"id":"scream-6","title":"Scream VI","year":2023},
+    {"id":"scream-7","title":"Scream 7","year":2026}
+  ]},
+  {"id":"halloween","name":"Halloween","note":"Thirteen films. Three are titled Halloween and two are titled Halloween II, so the year is how you tell them apart.","movies":[
+    {"id":"halloween-1978","title":"Halloween","year":1978},
+    {"id":"halloween-2-1981","title":"Halloween II","year":1981},
+    {"id":"halloween-3","title":"Halloween III: Season of the Witch","year":1982,"note":"No Michael Myers."},
+    {"id":"halloween-4","title":"Halloween 4: The Return of Michael Myers","year":1988},
+    {"id":"halloween-5","title":"Halloween 5: The Revenge of Michael Myers","year":1989},
+    {"id":"halloween-6","title":"Halloween: The Curse of Michael Myers","year":1995},
+    {"id":"halloween-h20","title":"Halloween H20: 20 Years Later","year":1998},
+    {"id":"halloween-resurrection","title":"Halloween: Resurrection","year":2002},
+    {"id":"halloween-2007","title":"Halloween","year":2007,"note":"Rob Zombie remake."},
+    {"id":"halloween-2-2009","title":"Halloween II","year":2009,"note":"Rob Zombie sequel."},
+    {"id":"halloween-2018","title":"Halloween","year":2018},
+    {"id":"halloween-kills","title":"Halloween Kills","year":2021},
+    {"id":"halloween-ends","title":"Halloween Ends","year":2022}
+  ]},
+  {"id":"friday","name":"Friday the 13th","note":"Jason from Part 2 on, except Part V.","movies":[
+    {"id":"friday-1980","title":"Friday the 13th","year":1980,"note":"The killer is Pamela Voorhees, not Jason."},
+    {"id":"friday-2","title":"Friday the 13th Part 2","year":1981},
+    {"id":"friday-3","title":"Friday the 13th Part III","year":1982},
+    {"id":"friday-4","title":"Friday the 13th: The Final Chapter","year":1984},
+    {"id":"friday-5","title":"Friday the 13th: A New Beginning","year":1985,"note":"A copycat, not Jason."},
+    {"id":"friday-6","title":"Friday the 13th Part VI: Jason Lives","year":1986},
+    {"id":"friday-7","title":"Friday the 13th Part VII: The New Blood","year":1988},
+    {"id":"friday-8","title":"Friday the 13th Part VIII: Jason Takes Manhattan","year":1989},
+    {"id":"friday-jgh","title":"Jason Goes to Hell: The Final Friday","year":1993},
+    {"id":"friday-jason-x","title":"Jason X","year":2001},
+    {"id":"freddy-vs-jason","title":"Freddy vs. Jason","year":2003,"note":"Same film as in Nightmare on Elm Street. One decision for both."},
+    {"id":"friday-2009","title":"Friday the 13th","year":2009,"note":"Remake."}
+  ]},
+  {"id":"nightmare","name":"A Nightmare on Elm Street","movies":[
+    {"id":"nightmare-1984","title":"A Nightmare on Elm Street","year":1984},
+    {"id":"nightmare-2","title":"A Nightmare on Elm Street 2: Freddy's Revenge","year":1985},
+    {"id":"nightmare-3","title":"A Nightmare on Elm Street 3: Dream Warriors","year":1987},
+    {"id":"nightmare-4","title":"A Nightmare on Elm Street 4: The Dream Master","year":1988},
+    {"id":"nightmare-5","title":"A Nightmare on Elm Street 5: The Dream Child","year":1989},
+    {"id":"nightmare-6","title":"Freddy's Dead: The Final Nightmare","year":1991},
+    {"id":"nightmare-new","title":"Wes Craven's New Nightmare","year":1994},
+    {"id":"freddy-vs-jason","title":"Freddy vs. Jason","year":2003,"note":"Same film as in Friday the 13th. One decision for both."},
+    {"id":"nightmare-2010","title":"A Nightmare on Elm Street","year":2010,"note":"Remake."}
+  ]},
+  {"id":"axe","name":"So I Married an Axe Murderer","movies":[
+    {"id":"axe","title":"So I Married an Axe Murderer","year":1993,"note":"Comedy, not a horror film."}
+  ]},
+  {"id":"ikwydls","name":"I Know What You Did Last Summer","note":"Kevin Williamson wrote the 1997 film right after Scream.","movies":[
+    {"id":"ikwydls-1997","title":"I Know What You Did Last Summer","year":1997},
+    {"id":"ikwydls-1998","title":"I Still Know What You Did Last Summer","year":1998},
+    {"id":"ikwydls-2006","title":"I'll Always Know What You Did Last Summer","year":2006,"note":"Straight to video. The 2025 film ignores it."},
+    {"id":"ikwydls-2025","title":"I Know What You Did Last Summer","year":2025}
+  ]},
+  {"id":"chucky","name":"Child's Play / Chucky","movies":[
+    {"id":"chucky-1988","title":"Child's Play","year":1988},
+    {"id":"chucky-2","title":"Child's Play 2","year":1990},
+    {"id":"chucky-3","title":"Child's Play 3","year":1991},
+    {"id":"chucky-bride","title":"Bride of Chucky","year":1998},
+    {"id":"chucky-seed","title":"Seed of Chucky","year":2004},
+    {"id":"chucky-curse","title":"Curse of Chucky","year":2013},
+    {"id":"chucky-cult","title":"Cult of Chucky","year":2017},
+    {"id":"chucky-2019","title":"Child's Play","year":2019,"note":"Remake. Separate from the other seven."}
+  ]},
+  {"id":"tcm","name":"The Texas Chainsaw Massacre","movies":[
+    {"id":"tcm-1974","title":"The Texas Chain Saw Massacre","year":1974},
+    {"id":"tcm-1986","title":"The Texas Chainsaw Massacre Part 2","year":1986},
+    {"id":"tcm-1990","title":"Leatherface: The Texas Chainsaw Massacre III","year":1990},
+    {"id":"tcm-1995","title":"Texas Chainsaw Massacre: The Next Generation","year":1995,"note":"Also released as The Return of the Texas Chainsaw Massacre."},
+    {"id":"tcm-2003","title":"The Texas Chainsaw Massacre","year":2003,"note":"Remake."},
+    {"id":"tcm-2006","title":"The Texas Chainsaw Massacre: The Beginning","year":2006},
+    {"id":"tcm-2013","title":"Texas Chainsaw 3D","year":2013},
+    {"id":"tcm-2017","title":"Leatherface","year":2017},
+    {"id":"tcm-2022","title":"Texas Chainsaw Massacre","year":2022}
+  ]},
+  {"id":"hellraiser","name":"Hellraiser","note":"Inferno through Judgment went straight to video. The 2022 film is a reboot.","movies":[
+    {"id":"hell-1987","title":"Hellraiser","year":1987},
+    {"id":"hell-1988","title":"Hellbound: Hellraiser II","year":1988},
+    {"id":"hell-1992","title":"Hellraiser III: Hell on Earth","year":1992},
+    {"id":"hell-1996","title":"Hellraiser: Bloodline","year":1996},
+    {"id":"hell-2000","title":"Hellraiser: Inferno","year":2000},
+    {"id":"hell-2002","title":"Hellraiser: Hellseeker","year":2002},
+    {"id":"hell-2005a","title":"Hellraiser: Deader","year":2005},
+    {"id":"hell-2005b","title":"Hellraiser: Hellworld","year":2005},
+    {"id":"hell-2011","title":"Hellraiser: Revelations","year":2011},
+    {"id":"hell-2018","title":"Hellraiser: Judgment","year":2018},
+    {"id":"hell-2022","title":"Hellraiser","year":2022,"note":"Reboot."}
+  ]},
+  {"id":"candyman","name":"Candyman","movies":[
+    {"id":"candy-1992","title":"Candyman","year":1992},
+    {"id":"candy-1995","title":"Candyman: Farewell to the Flesh","year":1995},
+    {"id":"candy-1999","title":"Candyman: Day of the Dead","year":1999},
+    {"id":"candy-2021","title":"Candyman","year":2021,"note":"Continues the 1992 film."}
+  ]},
+  {"id":"evildead","name":"Evil Dead","movies":[
+    {"id":"ed-1981","title":"The Evil Dead","year":1981},
+    {"id":"ed-1987","title":"Evil Dead II","year":1987},
+    {"id":"ed-1992","title":"Army of Darkness","year":1992},
+    {"id":"ed-2013","title":"Evil Dead","year":2013},
+    {"id":"ed-2023","title":"Evil Dead Rise","year":2023}
+  ]},
+  {"id":"urban","name":"Urban Legend","movies":[
+    {"id":"urban-1998","title":"Urban Legend","year":1998},
+    {"id":"urban-2000","title":"Urban Legends: Final Cut","year":2000},
+    {"id":"urban-2005","title":"Urban Legends: Bloody Mary","year":2005,"note":"Straight to video."}
+  ]},
+  {"id":"fd","name":"Final Destination","movies":[
+    {"id":"fd-2000","title":"Final Destination","year":2000},
+    {"id":"fd-2003","title":"Final Destination 2","year":2003},
+    {"id":"fd-2006","title":"Final Destination 3","year":2006},
+    {"id":"fd-2009","title":"The Final Destination","year":2009},
+    {"id":"fd-2011","title":"Final Destination 5","year":2011},
+    {"id":"fd-2025","title":"Final Destination Bloodlines","year":2025}
+  ]},
+  {"id":"camp","name":"Camp slashers","note":"Originals only. Sequels of these are not on this list.","movies":[
+    {"id":"burning","title":"The Burning","year":1981},
+    {"id":"prom-night","title":"Prom Night","year":1980},
+    {"id":"mbv","title":"My Bloody Valentine","year":1981},
+    {"id":"sleepaway","title":"Sleepaway Camp","year":1983}
+  ]},
+  {"id":"psycho","name":"Psycho","note":"Sequels are not on this list.","movies":[
+    {"id":"psycho-1960","title":"Psycho","year":1960}
+  ]},
+  {"id":"black-christmas","name":"Black Christmas","note":"Remakes are not on this list.","movies":[
+    {"id":"black-christmas-1974","title":"Black Christmas","year":1974}
+  ]},
+  {"id":"scary-movie","name":"Scary Movie","note":"Parodies of Scream.","movies":[
+    {"id":"scary-1","title":"Scary Movie","year":2000},
+    {"id":"scary-2","title":"Scary Movie 2","year":2001},
+    {"id":"scary-3","title":"Scary Movie 3","year":2003},
+    {"id":"scary-4","title":"Scary Movie 4","year":2006},
+    {"id":"scary-5","title":"Scary Movie 5","year":2013}
+  ]},
+  {"id":"serial-mom","name":"Serial Mom","movies":[
+    {"id":"serial-mom","title":"Serial Mom","year":1994}
+  ]},
+  {"id":"terrifier","name":"Terrifier","note":"Terrifier 4 is not out, so it is not listed.","movies":[
+    {"id":"terrifier-1","title":"Terrifier","year":2016},
+    {"id":"terrifier-2","title":"Terrifier 2","year":2022},
+    {"id":"terrifier-3","title":"Terrifier 3","year":2024}
+  ]},
+  {"id":"hdd","name":"Happy Death Day","movies":[
+    {"id":"hdd-1","title":"Happy Death Day","year":2017},
+    {"id":"hdd-2","title":"Happy Death Day 2U","year":2019}
+  ]},
+  {"id":"thanksgiving","name":"Thanksgiving","movies":[
+    {"id":"thanksgiving","title":"Thanksgiving","year":2023}
+  ]},
+  {"id":"x-trilogy","name":"X / Pearl / MaXXXine","movies":[
+    {"id":"x-2022","title":"X","year":2022},
+    {"id":"pearl","title":"Pearl","year":2022},
+    {"id":"maxxxine","title":"MaXXXine","year":2024}
+  ]}
+]</script>
+<script>
+const FAMILIES = JSON.parse(document.getElementById("families").textContent);
+const movieIds = new Set();
+const movieInfo = new Map();
+for (const family of FAMILIES) {
+  for (const movie of family.movies) {
+    movieIds.add(movie.id);
+    if (!movieInfo.has(movie.id)) movieInfo.set(movie.id, movie);
+  }
+}
+
+const STORAGE_KEY = "horror-keep-drop-v1";
+let state = {};
+let filter = "all";
+let query = "";
+
+function encodeState(value) {
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  let bin = "";
+  for (const byte of bytes) bin += String.fromCharCode(byte);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeState(raw) {
+  const pad = raw.length % 4 === 0 ? "" : "=".repeat(4 - (raw.length % 4));
+  const b64 = raw.replace(/-/g, "+").replace(/_/g, "/") + pad;
+  const bin = atob(b64);
+  const bytes = Uint8Array.from(bin, (char) => char.charCodeAt(0));
+  const data = JSON.parse(new TextDecoder().decode(bytes));
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("bad state");
+  const clean = {};
+  for (const [id, choice] of Object.entries(data)) {
+    if (movieIds.has(id) && (choice === "keep" || choice === "drop")) clean[id] = choice;
+  }
+  return clean;
+}
+
+function loadState() {
+  const hash = new URLSearchParams(location.hash.slice(1)).get("p");
+  if (hash) {
+    try { return decodeState(hash); } catch (error) { /* fall through */ }
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    return decodeState(encodeState(saved));
+  } catch (error) {
+    return {};
+  }
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const next = "#p=" + encodeState(state);
+  if (location.hash !== next) history.replaceState(null, "", next);
+}
+
+function uniqueIds(family) {
+  return [...new Set(family.movies.map((movie) => movie.id))];
+}
+
+function familyAggregate(family) {
+  const choices = uniqueIds(family).map((id) => state[id] || "unset");
+  if (choices.every((choice) => choice === "keep")) return "keep";
+  if (choices.every((choice) => choice === "drop")) return "drop";
+  if (choices.every((choice) => choice === "unset")) return "unset";
+  return "mixed";
+}
+
+function visible(movie, family) {
+  const choice = state[movie.id] || "unset";
+  if (filter !== "all" && choice !== filter) return false;
+  if (!query) return true;
+  const hay = [family.name, movie.title, String(movie.year), movie.note || ""].join(" ").toLowerCase();
+  return hay.includes(query);
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[char]));
+}
+
+function render() {
+  const list = document.getElementById("list");
+  const parts = [];
+  for (const family of FAMILIES) {
+    const movies = family.movies.filter((movie) => visible(movie, family));
+    if (!movies.length) continue;
+    const aggregate = familyAggregate(family);
+    const movieHtml = movies.map((movie) => {
+      const choice = state[movie.id] || "unset";
+      const note = movie.note ? `<p class="movie-note">${escapeHtml(movie.note)}</p>` : "";
+      return `<div class="movie ${choice === "unset" ? "" : choice}" data-id="${movie.id}">
+        <div>
+          <h3 class="title"><span class="year">${movie.year}</span>${escapeHtml(movie.title)}</h3>
+          ${note}
+        </div>
+        <div class="choices">
+          <button type="button" class="keep" data-set="keep" aria-pressed="${choice === "keep"}">Keep</button>
+          <button type="button" class="drop" data-set="drop" aria-pressed="${choice === "drop"}">Drop</button>
+        </div>
+      </div>`;
+    }).join("");
+    const note = family.note ? `<p class="family-note">${escapeHtml(family.note)}</p>` : "";
+    parts.push(`<section class="family" id="family-${family.id}">
+      <div class="family-head">
+        <h2>${escapeHtml(family.name)}</h2>
+        <div class="family-actions">
+          <button type="button" class="keep" data-family="${family.id}" data-family-set="keep" aria-pressed="${aggregate === "keep"}">Keep family</button>
+          <button type="button" class="drop" data-family="${family.id}" data-family-set="drop" aria-pressed="${aggregate === "drop"}">Drop family</button>
+          <button type="button" data-family="${family.id}" data-family-set="clear">Clear family</button>
+        </div>
+      </div>
+      ${note}
+      ${movieHtml}
+    </section>`);
+  }
+  list.innerHTML = parts.join("") || `<p class="lede">Nothing matches.</p>`;
+
+  const kept = [];
+  const dropped = [];
+  for (const id of movieIds) {
+    if (state[id] === "keep") kept.push(id);
+    if (state[id] === "drop") dropped.push(id);
+  }
+  document.getElementById("stats").textContent =
+    `${movieIds.size} movies · ${kept.length} kept · ${dropped.length} dropped · ${movieIds.size - kept.length - dropped.length} undecided`;
+
+  const keptRoot = document.getElementById("kept");
+  const blocks = [];
+  const shown = new Set();
+  for (const family of FAMILIES) {
+    const rows = [];
+    for (const movie of family.movies) {
+      if (state[movie.id] !== "keep" || shown.has(movie.id)) continue;
+      shown.add(movie.id);
+      rows.push(`<li>${escapeHtml(movie.title)} (${movie.year})</li>`);
+    }
+    if (rows.length) blocks.push(`<h3>${escapeHtml(family.name)}</h3><ul>${rows.join("")}</ul>`);
+  }
+  keptRoot.innerHTML = `<h2>Kept</h2>${blocks.join("") || "<p class='lede'>Nothing kept yet.</p>"}`;
+}
+
+function setMovie(id, choice) {
+  if (state[id] === choice) delete state[id];
+  else state[id] = choice;
+}
+
+function setFamily(familyId, choice) {
+  const family = FAMILIES.find((item) => item.id === familyId);
+  for (const id of uniqueIds(family)) {
+    if (choice === "clear") delete state[id];
+    else state[id] = choice;
+  }
+}
+
+function keptText() {
+  const lines = ["Kept", ""];
+  const shown = new Set();
+  for (const family of FAMILIES) {
+    const rows = [];
+    for (const movie of family.movies) {
+      if (state[movie.id] !== "keep" || shown.has(movie.id)) continue;
+      shown.add(movie.id);
+      rows.push(`- ${movie.title} (${movie.year})`);
+    }
+    if (rows.length) lines.push(family.name, ...rows, "");
+  }
+  return lines.join("\n").trim() + "\n";
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (error) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+  }
+  const toast = document.getElementById("toast");
+  toast.textContent = "Copied";
+  setTimeout(() => { if (toast.textContent === "Copied") toast.textContent = ""; }, 1600);
+}
+
+document.getElementById("jump").innerHTML = FAMILIES.map((family) =>
+  `<a href="#family-${family.id}">${escapeHtml(family.name)}</a>`
+).join("");
+
+document.getElementById("list").addEventListener("click", (event) => {
+  const movieButton = event.target.closest("[data-set]");
+  if (movieButton) {
+    setMovie(movieButton.closest("[data-id]").dataset.id, movieButton.dataset.set);
+    saveState();
+    render();
+    return;
+  }
+  const familyButton = event.target.closest("[data-family-set]");
+  if (familyButton) {
+    setFamily(familyButton.dataset.family, familyButton.dataset.familySet);
+    saveState();
+    render();
+  }
+});
+
+document.querySelector(".controls").addEventListener("click", (event) => {
+  const filterButton = event.target.closest("[data-filter]");
+  if (!filterButton) return;
+  filter = filterButton.dataset.filter;
+  for (const button of document.querySelectorAll("[data-filter]")) {
+    button.setAttribute("aria-pressed", String(button === filterButton));
+  }
+  render();
+});
+
+document.getElementById("q").addEventListener("input", (event) => {
+  query = event.target.value.trim().toLowerCase();
+  render();
+});
+
+document.getElementById("copy-kept").addEventListener("click", () => copyText(keptText()));
+document.getElementById("copy-link").addEventListener("click", () => copyText(location.href));
+document.getElementById("reset").addEventListener("click", () => {
+  if (!Object.keys(state).length) return;
+  if (!confirm("Clear every keep and drop?")) return;
+  state = {};
+  saveState();
+  render();
+});
+
+state = loadState();
+saveState();
+render();
+</script>
+</body>
+</html>

@@ -23,7 +23,22 @@ function cleanPicks(value) {
   return picks;
 }
 
+function sameSecret(given, expected) {
+  if (!expected || given.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < given.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
+
+function allowed(request, env) {
+  const header = request.headers.get("authorization") || "";
+  const given = header.startsWith("Bearer ") ? header.slice(7) : "";
+  return sameSecret(given, env.PICKS_CODE || "");
+}
+
 async function handlePicks(request, env) {
+  if (!allowed(request, env)) return json({ error: "unauthorized" }, 401);
+
   if (request.method === "GET" || request.method === "HEAD") {
     const raw = await env.PICKS.get(PICKS_KEY);
     const stored = raw ? JSON.parse(raw) : { updated: null, picks: {} };

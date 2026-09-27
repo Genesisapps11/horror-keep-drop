@@ -37,6 +37,8 @@
   .lede { margin: 0; color: var(--muted); max-width: 68ch; }
   .stats { margin: 10px 0 0; color: var(--brass); font: 14px/1.3 system-ui, sans-serif; }
   .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+  #code-wrap { display: flex; gap: 8px; align-items: center; }
+  #code-wrap[hidden] { display: none; }
   input[type="search"] {
     background: #0e0d0b;
     color: var(--text);
@@ -109,7 +111,7 @@
 <body>
 <header class="top">
   <h1>Horror keep or drop</h1>
-  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices save on Cloudflare and load the next time you open this page. Email Stephen still opens a message to stephen@skyhighmedia.com.</p>
+  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices save on Cloudflare after you unlock them with the save code. Email Stephen still opens a message to stephen@skyhighmedia.com.</p>
   <p class="stats" id="stats"></p>
   <div class="controls">
     <input id="q" type="search" placeholder="Search titles" aria-label="Search titles">
@@ -121,6 +123,10 @@
     <button type="button" id="copy-link">Copy link</button>
     <button type="button" id="download-file">Download file</button>
     <button type="button" id="email-stephen">Email Stephen</button>
+    <label id="code-wrap" hidden>Save code
+      <input id="save-code" type="password" placeholder="Save code" autocomplete="off">
+      <button type="button" id="save-code-set">Unlock</button>
+    </label>
     <button type="button" id="reset">Clear all</button>
     <span class="toast" id="toast" role="status"></span>
   </div>
@@ -301,6 +307,7 @@ for (const family of FAMILIES) {
 }
 
 const STORAGE_KEY = "horror-keep-drop-v1";
+const CODE_KEY = "horror-picks-code";
 let state = {};
 let filter = "all";
 let query = "";
@@ -355,18 +362,58 @@ function scheduleSave() {
   saveTimer = setTimeout(pushPicks, 400);
 }
 
+function saveCode() {
+  return localStorage.getItem(CODE_KEY) || "";
+}
+
+function captureCode() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const fromHash = params.get("k");
+  if (!fromHash) return;
+  localStorage.setItem(CODE_KEY, fromHash);
+  params.delete("k");
+  const rest = params.toString();
+  history.replaceState(null, "", rest ? "#" + rest : location.pathname + location.search);
+}
+
+function showCodePrompt() {
+  document.getElementById("code-wrap").hidden = false;
+}
+
+function hideCodePrompt() {
+  document.getElementById("code-wrap").hidden = true;
+}
+
+function authHeaders(extra) {
+  const headers = { ...(extra || {}) };
+  const code = saveCode();
+  if (code) headers.authorization = "Bearer " + code;
+  return headers;
+}
+
 async function pushPicks() {
+  if (!saveCode()) {
+    showCodePrompt();
+    showToast("Add the save code");
+    return;
+  }
   const body = JSON.stringify({ picks: state });
   if (body === lastSaved) return;
   showToast("Saving");
   try {
     const res = await fetch("/picks", {
       method: "PUT",
-      headers: { "content-type": "application/json" },
+      headers: authHeaders({ "content-type": "application/json" }),
       body,
     });
+    if (res.status === 401) {
+      showCodePrompt();
+      showToast("Save code was rejected");
+      return;
+    }
     if (!res.ok) throw new Error(String(res.status));
     lastSaved = body;
+    hideCodePrompt();
     showToast("Saved");
   } catch (error) {
     showToast("Not saved");
@@ -374,10 +421,20 @@ async function pushPicks() {
 }
 
 async function loadRemote() {
+  if (!saveCode()) {
+    showCodePrompt();
+    return;
+  }
   try {
-    const res = await fetch("/picks", { headers: { accept: "application/json" } });
+    const res = await fetch("/picks", { headers: authHeaders({ accept: "application/json" }) });
+    if (res.status === 401) {
+      showCodePrompt();
+      showToast("Save code was rejected");
+      return;
+    }
     if (!res.ok) return;
     const data = await res.json();
+    hideCodePrompt();
     if (!data || !data.updated || !data.picks) return;
     const clean = {};
     for (const [id, choice] of Object.entries(data.picks)) {
@@ -627,6 +684,14 @@ document.getElementById("download-file").addEventListener("click", () => {
   showToast("Downloaded horror-picks.txt");
 });
 document.getElementById("email-stephen").addEventListener("click", emailStephen);
+document.getElementById("save-code-set").addEventListener("click", () => {
+  const value = document.getElementById("save-code").value.trim();
+  if (!value) return;
+  localStorage.setItem(CODE_KEY, value);
+  document.getElementById("save-code").value = "";
+  hideCodePrompt();
+  loadRemote().then(() => pushPicks());
+});
 document.getElementById("reset").addEventListener("click", () => {
   if (!Object.keys(state).length) return;
   if (!confirm("Clear every keep and drop?")) return;
@@ -635,9 +700,12 @@ document.getElementById("reset").addEventListener("click", () => {
   render();
 });
 
+captureCode();
 state = loadState();
 persistLocal();
 render();
+if (saveCode()) hideCodePrompt();
+else showCodePrompt();
 loadRemote();
 </script>
 </body>

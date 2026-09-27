@@ -109,7 +109,7 @@
 <body>
 <header class="top">
   <h1>Horror keep or drop</h1>
-  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices stay in this browser. Copy the link if you want them on another device.</p>
+  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices stay in this browser. Email Stephen downloads the list and opens a message to stephen@skyhighmedia.com.</p>
   <p class="stats" id="stats"></p>
   <div class="controls">
     <input id="q" type="search" placeholder="Search titles" aria-label="Search titles">
@@ -119,6 +119,8 @@
     <button type="button" data-filter="drop" aria-pressed="false">Dropped</button>
     <button type="button" id="copy-kept">Copy kept list</button>
     <button type="button" id="copy-link">Copy link</button>
+    <button type="button" id="download-file">Download file</button>
+    <button type="button" id="email-stephen">Email Stephen</button>
     <button type="button" id="reset">Clear all</button>
     <span class="toast" id="toast" role="status"></span>
   </div>
@@ -443,19 +445,74 @@ function setFamily(familyId, choice) {
   }
 }
 
-function keptText() {
-  const lines = ["Kept", ""];
+function sectionText(choice, heading) {
+  const lines = [heading, ""];
   const shown = new Set();
+  let any = false;
   for (const family of FAMILIES) {
     const rows = [];
     for (const movie of family.movies) {
-      if (state[movie.id] !== "keep" || shown.has(movie.id)) continue;
+      if (state[movie.id] !== choice || shown.has(movie.id)) continue;
       shown.add(movie.id);
       rows.push(`- ${movie.title} (${movie.year})`);
     }
-    if (rows.length) lines.push(family.name, ...rows, "");
+    if (rows.length) {
+      any = true;
+      lines.push(family.name, ...rows, "");
+    }
   }
-  return lines.join("\n").trim() + "\n";
+  if (!any) lines.push("(none)", "");
+  return { lines, count: shown.size };
+}
+
+function keptText() {
+  return sectionText("keep", "Kept").lines.join("\n").trim() + "\n";
+}
+
+function picksText() {
+  const kept = sectionText("keep", "Kept");
+  const dropped = sectionText("drop", "Dropped");
+  return {
+    text: ["Horror keep or drop", "", ...kept.lines, ...dropped.lines].join("\n").trim() + "\n",
+    kept: kept.count,
+    dropped: dropped.count,
+  };
+}
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  setTimeout(() => { if (toast.textContent === message) toast.textContent = ""; }, 2500);
+}
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function emailStephen() {
+  const picks = picksText();
+  if (!picks.kept && !picks.dropped) {
+    showToast("Mark at least one movie first");
+    return;
+  }
+  const subject = "Horror keep or drop";
+  const address = "stephen@skyhighmedia.com";
+  let body = picks.text;
+  const fullUrl = `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  if (fullUrl.length > 1800) {
+    downloadText("horror-picks.txt", picks.text);
+    body = `Attach horror-picks.txt. ${picks.kept} kept, ${picks.dropped} dropped.\n\n${picks.text.slice(0, 700)}`;
+  }
+  const link = document.createElement("a");
+  link.href = `mailto:${address}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  link.click();
+  showToast(fullUrl.length > 1800 ? "Downloaded horror-picks.txt and opened the email" : "Opened an email to Stephen");
 }
 
 async function copyText(text) {
@@ -511,6 +568,16 @@ document.getElementById("q").addEventListener("input", (event) => {
 
 document.getElementById("copy-kept").addEventListener("click", () => copyText(keptText()));
 document.getElementById("copy-link").addEventListener("click", () => copyText(location.href));
+document.getElementById("download-file").addEventListener("click", () => {
+  const picks = picksText();
+  if (!picks.kept && !picks.dropped) {
+    showToast("Mark at least one movie first");
+    return;
+  }
+  downloadText("horror-picks.txt", picks.text);
+  showToast("Downloaded horror-picks.txt");
+});
+document.getElementById("email-stephen").addEventListener("click", emailStephen);
 document.getElementById("reset").addEventListener("click", () => {
   if (!Object.keys(state).length) return;
   if (!confirm("Clear every keep and drop?")) return;

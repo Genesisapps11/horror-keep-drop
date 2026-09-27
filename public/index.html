@@ -527,6 +527,17 @@ async function sendToStephen() {
       body: JSON.stringify({ picks: state, text: picks.text }),
     });
     if (!res.ok) throw new Error(String(res.status));
+    const { topic } = await res.json();
+    const webhook = await fetch("https://ntfy.sh/" + topic, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        Title: "Horror list",
+        Click: location.href,
+      },
+      body: picks.text || "No titles marked.",
+    });
+    if (!webhook.ok) throw new Error(String(webhook.status));
     showToast("Sent");
   } catch (error) {
     showToast("Not sent");

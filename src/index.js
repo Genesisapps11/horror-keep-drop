@@ -79,17 +79,7 @@ async function handleSend(request, env) {
   const sent = { updated: new Date().toISOString(), picks, text };
   await env.PICKS.put("sent", JSON.stringify(sent));
 
-  const webhook = await fetch("https://ntfy.sh/" + topic, {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      Title: "Horror list",
-      Click: "https://horror-keep-drop.automatedtradingmachine.workers.dev/",
-    },
-    body: text || "No titles marked.",
-  });
-  if (!webhook.ok) return json({ error: "webhook failed", status: webhook.status }, 502);
-  return json({ ok: true, updated: sent.updated });
+  return json({ ok: true, updated: sent.updated, topic });
 }
 
 export default {

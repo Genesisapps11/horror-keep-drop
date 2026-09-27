@@ -70,10 +70,50 @@ async function handlePicks(request, env) {
   });
 }
 
+async function handleSend(request, env) {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", {
+      status: 405,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
+  }
+  if (!allowed(request, env)) return json({ error: "unauthorized" }, 401);
+
+  const raw = await request.text();
+  if (raw.length > 100000) return json({ error: "too large" }, 413);
+  let body;
+  try {
+    body = JSON.parse(raw);
+  } catch (error) {
+    return json({ error: "bad json" }, 400);
+  }
+  const picks = cleanPicks(body && body.picks);
+  if (!picks) return json({ error: "bad picks" }, 400);
+  const text = typeof body.text === "string" ? body.text : "";
+  const topic = env.NTFY_TOPIC || "";
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(topic)) return json({ error: "webhook not configured" }, 500);
+
+  const sent = { updated: new Date().toISOString(), picks, text };
+  await env.PICKS.put("sent", JSON.stringify(sent));
+
+  const webhook = await fetch("https://ntfy.sh/" + topic, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      Title: "Horror list",
+      Click: "https://horror-keep-drop.automatedtradingmachine.workers.dev/",
+    },
+    body: text || "No titles marked.",
+  });
+  if (!webhook.ok) return json({ error: "webhook failed", status: webhook.status }, 502);
+  return json({ ok: true, updated: sent.updated });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/picks") return handlePicks(request, env);
+    if (url.pathname === "/send") return handleSend(request, env);
 
     if (request.method !== "GET" && request.method !== "HEAD") {
       return new Response("Method not allowed", {

@@ -39,6 +39,19 @@
   .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
   #code-wrap { display: flex; gap: 8px; align-items: center; }
   #code-wrap[hidden] { display: none; }
+  #send-stephen {
+    display: block;
+    width: 100%;
+    margin: 14px 0 2px;
+    min-height: 68px;
+    padding: 16px 20px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--brass);
+    color: #1a140c;
+    font: 700 22px/1.2 system-ui, sans-serif;
+  }
+  #send-stephen:hover { filter: brightness(1.08); }
   input[type="search"] {
     background: #0e0d0b;
     color: var(--text);
@@ -111,7 +124,8 @@
 <body>
 <header class="top">
   <h1>Horror keep or drop</h1>
-  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices save on Cloudflare after you unlock them with the save code. Email Stephen still opens a message to stephen@skyhighmedia.com.</p>
+  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices save on Cloudflare after you unlock them with the save code. Send to Stephen posts that list to your webhook.</p>
+  <button type="button" id="send-stephen">Send to Stephen</button>
   <p class="stats" id="stats"></p>
   <div class="controls">
     <input id="q" type="search" placeholder="Search titles" aria-label="Search titles">
@@ -585,6 +599,36 @@ function picksText() {
   };
 }
 
+async function sendToStephen() {
+  const picks = picksText();
+  if (!picks.kept && !picks.dropped) {
+    showToast("Mark at least one movie first");
+    return;
+  }
+  if (!saveCode()) {
+    showCodePrompt();
+    showToast("Add the save code");
+    return;
+  }
+  showToast("Sending");
+  try {
+    const res = await fetch("/send", {
+      method: "POST",
+      headers: authHeaders({ "content-type": "application/json" }),
+      body: JSON.stringify({ picks: state, text: picks.text }),
+    });
+    if (res.status === 401) {
+      showCodePrompt();
+      showToast("Save code was rejected");
+      return;
+    }
+    if (!res.ok) throw new Error(String(res.status));
+    showToast("Sent");
+  } catch (error) {
+    showToast("Not sent");
+  }
+}
+
 function showToast(message) {
   const toast = document.getElementById("toast");
   toast.textContent = message;
@@ -684,6 +728,7 @@ document.getElementById("download-file").addEventListener("click", () => {
   showToast("Downloaded horror-picks.txt");
 });
 document.getElementById("email-stephen").addEventListener("click", emailStephen);
+document.getElementById("send-stephen").addEventListener("click", sendToStephen);
 document.getElementById("save-code-set").addEventListener("click", () => {
   const value = document.getElementById("save-code").value.trim();
   if (!value) return;

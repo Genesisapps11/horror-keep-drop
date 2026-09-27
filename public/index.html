@@ -109,7 +109,7 @@
 <body>
 <header class="top">
   <h1>Horror keep or drop</h1>
-  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices stay in this browser. Email Stephen downloads the list and opens a message to stephen@skyhighmedia.com.</p>
+  <p class="lede">Mark a whole family, or one movie. A second click on the same choice clears it. Choices save on Cloudflare and load the next time you open this page. Email Stephen still opens a message to stephen@skyhighmedia.com.</p>
   <p class="stats" id="stats"></p>
   <div class="controls">
     <input id="q" type="search" placeholder="Search titles" aria-label="Search titles">
@@ -326,11 +326,11 @@ function decodeState(raw) {
   return clean;
 }
 
+let saveTimer = null;
+let lastSaved = "";
+let applyingRemote = false;
+
 function loadState() {
-  const hash = new URLSearchParams(location.hash.slice(1)).get("p");
-  if (hash) {
-    try { return decodeState(hash); } catch (error) { /* fall through */ }
-  }
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
     return decodeState(encodeState(saved));
@@ -339,10 +339,59 @@ function loadState() {
   }
 }
 
-function saveState() {
+function persistLocal() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   const next = "#p=" + encodeState(state);
   if (location.hash !== next) history.replaceState(null, "", next);
+}
+
+function saveState() {
+  persistLocal();
+  if (!applyingRemote) scheduleSave();
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushPicks, 400);
+}
+
+async function pushPicks() {
+  const body = JSON.stringify({ picks: state });
+  if (body === lastSaved) return;
+  showToast("Saving");
+  try {
+    const res = await fetch("/picks", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body,
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    lastSaved = body;
+    showToast("Saved");
+  } catch (error) {
+    showToast("Not saved");
+  }
+}
+
+async function loadRemote() {
+  try {
+    const res = await fetch("/picks", { headers: { accept: "application/json" } });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || !data.updated || !data.picks) return;
+    const clean = {};
+    for (const [id, choice] of Object.entries(data.picks)) {
+      if (movieIds.has(id) && (choice === "keep" || choice === "drop")) clean[id] = choice;
+    }
+    applyingRemote = true;
+    state = clean;
+    lastSaved = JSON.stringify({ picks: state });
+    persistLocal();
+    applyingRemote = false;
+    render();
+  } catch (error) {
+    /* Keep the copy already on this browser. */
+  }
 }
 
 function uniqueIds(family) {
@@ -587,8 +636,9 @@ document.getElementById("reset").addEventListener("click", () => {
 });
 
 state = loadState();
-saveState();
+persistLocal();
 render();
+loadRemote();
 </script>
 </body>
 </html>

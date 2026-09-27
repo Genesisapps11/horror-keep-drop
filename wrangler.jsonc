@@ -8,5 +8,11 @@
     "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": true
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "PICKS",
+      "id": "8742cecd69064c919b316b86c908fbe4"
+    }
+  ]
 }
